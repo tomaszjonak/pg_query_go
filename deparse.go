@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/kr/pretty"
-	nodes "github.com/lfittl/pg_query_go/nodes"
+	nodes "github.com/tomaszjonak/pg_query_go/nodes"
 )
 
 type DeparseContext struct {
@@ -37,8 +37,12 @@ func (c DeparseContext) deparseItem(node nodes.Node) (string, error) {
 	switch node.(type) {
 	case nodes.A_ArrayExpr:
 		return c.deparseA_ArrayExpr(node.(nodes.A_ArrayExpr))
+	case *nodes.A_ArrayExpr:
+		return c.deparseA_ArrayExpr(*node.(*nodes.A_ArrayExpr))
 	case nodes.A_Const:
 		return c.deparseA_Const(node.(nodes.A_Const))
+	case *nodes.A_Const:
+		return c.deparseA_Const(*node.(*nodes.A_Const))
 	case nodes.A_Expr:
 		switch node.(nodes.A_Expr).Kind {
 		case nodes.AEXPR_OP:
@@ -66,12 +70,45 @@ func (c DeparseContext) deparseItem(node nodes.Node) (string, error) {
 		default:
 			return "", fmt.Errorf("Can't deparse: %# v", pretty.Formatter(node))
 		}
+	case *nodes.A_Expr:
+		switch node.(*nodes.A_Expr).Kind {
+		case nodes.AEXPR_OP:
+			return c.deparseA_Expr(*node.(*nodes.A_Expr))
+		case nodes.AEXPR_OP_ANY:
+			return c.deparseA_ExprAny(*node.(*nodes.A_Expr))
+		//case nodes.AEXPR_OP_ALL:
+		//case nodes.AEXPR_DISTINCT:
+		//case nodes.AEXPR_NOT_DISTINCT:
+		case nodes.AEXPR_NULLIF:
+			return c.deparseA_ExprNullif(*node.(*nodes.A_Expr))
+		//case nodes.AEXPR_OF:
+		case nodes.AEXPR_IN:
+			return c.deparseA_ExprIn(*node.(*nodes.A_Expr))
+		case nodes.AEXPR_LIKE:
+			return c.deparseA_ExprLike(*node.(*nodes.A_Expr))
+		//case nodes.AEXPR_ILIKE:
+		//case nodes.AEXPR_SIMILAR:
+		case nodes.AEXPR_BETWEEN,
+			nodes.AEXPR_NOT_BETWEEN,
+			nodes.AEXPR_BETWEEN_SYM,
+			nodes.AEXPR_NOT_BETWEEN_SYM:
+			return c.deparseA_ExprBetween(*node.(*nodes.A_Expr))
+		//case nodes.AEXPR_PAREN:
+		default:
+			return "", fmt.Errorf("Can't deparse: %# v", pretty.Formatter(node))
+		}
 	case nodes.A_Indices:
 		return c.deparseA_Indices(node.(nodes.A_Indices))
+	case *nodes.A_Indices:
+		return c.deparseA_Indices(*node.(*nodes.A_Indices))
 	case nodes.A_Indirection:
 		return c.deparseA_Indirection(node.(nodes.A_Indirection))
+	case *nodes.A_Indirection:
+		return c.deparseA_Indirection(*node.(*nodes.A_Indirection))
 	case nodes.A_Star:
 		return c.deparseA_Star(node.(nodes.A_Star))
+	case *nodes.A_Star:
+		return c.deparseA_Star(*node.(*nodes.A_Star))
 	case nodes.Alias:
 		return c.deparseAlias(node.(nodes.Alias))
 	case *nodes.Alias:
@@ -87,52 +124,103 @@ func (c DeparseContext) deparseItem(node nodes.Node) (string, error) {
 		default:
 			return "", fmt.Errorf("Can't deparse: %# v", pretty.Formatter(node))
 		}
+	case *nodes.BoolExpr:
+		switch node.(*nodes.BoolExpr).Boolop {
+		case nodes.AND_EXPR:
+			return c.deparseBoolExprAnd(*node.(*nodes.BoolExpr))
+		case nodes.OR_EXPR:
+			return c.deparseBoolExprOr(*node.(*nodes.BoolExpr))
+		case 0x2: //NOT_EXPR
+			return c.deparseBoolExprNot(*node.(*nodes.BoolExpr))
+		default:
+			return "", fmt.Errorf("Can't deparse: %# v", pretty.Formatter(node))
+		}
 	case nodes.BooleanTest:
 		return c.deparseBooleanTest(node.(nodes.BooleanTest))
+	case *nodes.BooleanTest:
+		return c.deparseBooleanTest(*node.(*nodes.BooleanTest))
 	case nodes.CaseExpr:
 		return c.deparseCaseExpr(node.(nodes.CaseExpr))
+	case *nodes.CaseExpr:
+		return c.deparseCaseExpr(*node.(*nodes.CaseExpr))
 	case nodes.CaseWhen:
 		return c.deparseCaseWhen(node.(nodes.CaseWhen))
+	case *nodes.CaseWhen:
+		return c.deparseCaseWhen(*node.(*nodes.CaseWhen))
 	case nodes.CoalesceExpr:
 		return c.deparseCoalesceExpr(node.(nodes.CoalesceExpr))
+	case *nodes.CoalesceExpr:
+		return c.deparseCoalesceExpr(*node.(*nodes.CoalesceExpr))
 	case nodes.ColumnDef:
 		return c.deparseColumnDef(node.(nodes.ColumnDef))
+	case *nodes.ColumnDef:
+		return c.deparseColumnDef(*node.(*nodes.ColumnDef))
 	case nodes.ColumnRef:
 		return c.deparseColumnRef(node.(nodes.ColumnRef))
+	case *nodes.ColumnRef:
+		return c.deparseColumnRef(*node.(*nodes.ColumnRef))
 	case nodes.CommonTableExpr:
 		return c.deparseCommonTableExpr(node.(nodes.CommonTableExpr))
+	case *nodes.CommonTableExpr:
+		return c.deparseCommonTableExpr(*node.(*nodes.CommonTableExpr))
 	case nodes.Float:
 		return node.(nodes.Float).Str, nil
+	case *nodes.Float:
+		return node.(*nodes.Float).Str, nil
 	case nodes.FuncCall:
 		return c.deparseFuncCall(node.(nodes.FuncCall))
+	case *nodes.FuncCall:
+		return c.deparseFuncCall(*node.(*nodes.FuncCall))
 	case nodes.Integer:
 		return fmt.Sprintf("%d", node.(nodes.Integer).Ival), nil
+	case *nodes.Integer:
+		return fmt.Sprintf("%d", node.(*nodes.Integer).Ival), nil
 	case nodes.JoinExpr:
 		return c.deparseJoinExpr(node.(nodes.JoinExpr))
+	case *nodes.JoinExpr:
+		return c.deparseJoinExpr(*node.(*nodes.JoinExpr))
 	case nodes.Null:
 		return "NULL", nil
 	case nodes.NullTest:
 		return c.deparseNullTest(node.(nodes.NullTest))
+	case *nodes.NullTest:
+		return c.deparseNullTest(*node.(*nodes.NullTest))
 	case nodes.ParamRef:
 		return c.deparseParamRef(node.(nodes.ParamRef))
+	case *nodes.ParamRef:
+		return c.deparseParamRef(*node.(*nodes.ParamRef))
 	case nodes.RangeFunction:
 		return c.deparseRangeFunction(node.(nodes.RangeFunction))
+	case *nodes.RangeFunction:
+		return c.deparseRangeFunction(*node.(*nodes.RangeFunction))
 	case nodes.RangeSubselect:
 		return c.deparseRangeSubselect(node.(nodes.RangeSubselect))
+	case *nodes.RangeSubselect:
+		return c.deparseRangeSubselect(*node.(*nodes.RangeSubselect))
 	case nodes.RangeVar:
 		return c.deparseRangeVar(node.(nodes.RangeVar))
+	case *nodes.RangeVar:
+		return c.deparseRangeVar(*node.(*nodes.RangeVar))
 	case nodes.RawStmt:
 		return c.deparseRawStmt(node.(nodes.RawStmt))
+	case *nodes.RawStmt:
+		return c.deparseRawStmt(*node.(*nodes.RawStmt))
 	case nodes.ResTarget:
 		return c.deparseResTarget(node.(nodes.ResTarget))
+	case *nodes.ResTarget:
+		return c.deparseResTarget(*node.(*nodes.ResTarget))
 	case nodes.RowExpr:
 		return c.deparseRowExpr(node.(nodes.RowExpr))
+	case *nodes.RowExpr:
+		return c.deparseRowExpr(*node.(*nodes.RowExpr))
 	case nodes.SelectStmt:
 		return c.deparseSelect(node.(nodes.SelectStmt))
 	case *nodes.SelectStmt:
 		return c.deparseSelect(*node.(*nodes.SelectStmt))
 	case nodes.SortBy:
 		return c.deparseSortBy(node.(nodes.SortBy))
+	case *nodes.SortBy:
+		return c.deparseSortBy(*node.(*nodes.SortBy))
 	case nodes.String:
 		switch c.Context {
 		case "select":
@@ -144,10 +232,25 @@ func (c DeparseContext) deparseItem(node nodes.Node) (string, error) {
 		default:
 			return fmt.Sprintf(`"%s"`, strings.Replace(node.(nodes.String).Str, `"`, `""`, -1)), nil
 		}
+	case *nodes.String:
+		switch c.Context {
+		case "select":
+			return fmt.Sprintf(`"%s"`, node.(*nodes.String).Str), nil
+		case "a_const":
+			return fmt.Sprintf(`'%s'`, strings.Replace(node.(*nodes.String).Str, `'`, `''`, -1)), nil
+		case "func_call", "type_name", "operator", "defname_as":
+			return node.(*nodes.String).Str, nil
+		default:
+			return fmt.Sprintf(`"%s"`, strings.Replace(node.(*nodes.String).Str, `"`, `""`, -1)), nil
+		}
 	case nodes.SubLink:
 		return c.deparseSubLink(node.(nodes.SubLink))
+	case *nodes.SubLink:
+		return c.deparseSubLink(*node.(*nodes.SubLink))
 	case nodes.TypeCast:
 		return c.deparseTypeCast(node.(nodes.TypeCast))
+	case *nodes.TypeCast:
+		return c.deparseTypeCast(*node.(*nodes.TypeCast))
 	case nodes.TypeName:
 		return c.deparseTypeName(node.(nodes.TypeName))
 	case *nodes.TypeName:
